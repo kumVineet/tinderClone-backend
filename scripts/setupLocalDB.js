@@ -45,37 +45,27 @@ async function setupLocalDatabase() {
     
     console.log(`✅ Connected to '${databaseName}' database`);
     
-    // Read and execute the SQL setup script (excluding CREATE DATABASE and USE)
+    // Read the SQL setup script
     const sqlScriptPath = path.join(__dirname, 'setupLocalDatabase.sql');
     const sqlScript = fs.readFileSync(sqlScriptPath, 'utf8');
     
-    // Split the script into individual statements
-    const statements = sqlScript
-      .split(';')
-      .map(stmt => stmt.trim())
-      .filter(stmt => stmt.length > 0 && !stmt.startsWith('--'));
-    
     console.log('📝 Executing table creation and data setup...');
     
-    // Execute all statements except CREATE DATABASE and USE
-    for (const statement of statements) {
-      if (statement.trim()) {
-        const trimmedStmt = statement.trim();
-        
-        // Skip CREATE DATABASE and USE statements as they're already handled
-        if (!trimmedStmt.toUpperCase().includes('CREATE DATABASE') && 
-            !trimmedStmt.toUpperCase().includes('USE ')) {
-          try {
-            await connection.execute(trimmedStmt);
-          } catch (error) {
-            // Ignore errors for statements that might already exist
-            if (!error.message.includes('already exists') && 
-                !error.message.includes('Duplicate entry') &&
-                !error.message.includes('Duplicate key name')) {
-              console.warn(`⚠️  Warning: ${error.message}`);
-            }
-          }
-        }
+    // Clean the script by removing CREATE DATABASE and USE statements
+    const cleanScript = sqlScript
+      .replace(/CREATE DATABASE IF NOT EXISTS.*?;/gi, '') // Remove CREATE DATABASE
+      .replace(/USE.*?;/gi, '') // Remove USE statements
+      .replace(/--.*$/gm, '') // Remove single-line comments
+      .trim();
+    
+    if (cleanScript) {
+      try {
+        // Execute the entire script as one query
+        await connection.query(cleanScript);
+        console.log('✅ SQL script executed successfully');
+      } catch (error) {
+        console.error('❌ Error executing SQL script:', error.message);
+        throw error;
       }
     }
     
