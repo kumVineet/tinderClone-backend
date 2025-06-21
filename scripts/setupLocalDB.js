@@ -5,6 +5,58 @@ const fs = require('fs');
 const path = require('path');
 require('dotenv').config();
 
+// Function to properly split SQL statements
+function splitSQLStatements(sql) {
+  const statements = [];
+  let currentStatement = '';
+  let inString = false;
+  let stringChar = '';
+  let parenDepth = 0;
+  
+  for (let i = 0; i < sql.length; i++) {
+    const char = sql[i];
+    const nextChar = sql[i + 1];
+    
+    // Handle string literals
+    if ((char === "'" || char === '"') && !inString) {
+      inString = true;
+      stringChar = char;
+    } else if (char === stringChar && inString) {
+      // Check for escaped quotes
+      if (sql[i - 1] !== '\\') {
+        inString = false;
+        stringChar = '';
+      }
+    }
+    
+    // Handle parentheses
+    if (!inString) {
+      if (char === '(') parenDepth++;
+      if (char === ')') parenDepth--;
+    }
+    
+    // Only split on semicolon if not in string and parentheses are balanced
+    if (char === ';' && !inString && parenDepth === 0) {
+      currentStatement += char;
+      const trimmed = currentStatement.trim();
+      if (trimmed && !trimmed.startsWith('--')) {
+        statements.push(trimmed);
+      }
+      currentStatement = '';
+    } else {
+      currentStatement += char;
+    }
+  }
+  
+  // Add any remaining statement
+  const trimmed = currentStatement.trim();
+  if (trimmed && !trimmed.startsWith('--')) {
+    statements.push(trimmed);
+  }
+  
+  return statements;
+}
+
 async function setupLocalDatabase() {
   console.log('🏗️  Setting up local MySQL database...');
   
@@ -60,8 +112,29 @@ async function setupLocalDatabase() {
     
     if (cleanScript) {
       try {
-        // Execute the entire script as one query
-        await connection.query(cleanScript);
+        // Split into proper SQL statements
+        const statements = splitSQLStatements(cleanScript);
+        
+        console.log(`📋 Found ${statements.length} SQL statements to execute`);
+        
+        // Execute each statement individually
+        for (let i = 0; i < statements.length; i++) {
+          const statement = statements[i];
+          if (statement.trim()) {
+            try {
+              await connection.execute(statement);
+              console.log(`✅ Executed statement ${i + 1}/${statements.length}: ${statement.substring(0, 50)}...`);
+            } catch (error) {
+              // Ignore errors for statements that might already exist
+              if (!error.message.includes('already exists') && 
+                  !error.message.includes('Duplicate entry') &&
+                  !error.message.includes('Duplicate key name')) {
+                console.warn(`⚠️  Warning on statement ${i + 1}: ${error.message}`);
+              }
+            }
+          }
+        }
+        
         console.log('✅ SQL script executed successfully');
       } catch (error) {
         console.error('❌ Error executing SQL script:', error.message);

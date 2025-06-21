@@ -35,15 +35,11 @@ CREATE TABLE IF NOT EXISTS connection_requests (
     updatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     FOREIGN KEY (fromUserId) REFERENCES users(id) ON DELETE CASCADE,
     FOREIGN KEY (toUserId) REFERENCES users(id) ON DELETE CASCADE,
-    UNIQUE KEY unique_request (fromUserId, toUserId)
+    UNIQUE KEY unique_request (fromUserId, toUserId),
+    INDEX idx_status (status),
+    INDEX idx_from_user (fromUserId),
+    INDEX idx_to_user (toUserId)
 );
-
--- Create indexes for better performance
-CREATE INDEX idx_users_email ON users(email);
-CREATE INDEX idx_users_gender ON users(gender);
-CREATE INDEX idx_connection_requests_status ON connection_requests(status);
-CREATE INDEX idx_connection_requests_from_user ON connection_requests(fromUserId);
-CREATE INDEX idx_connection_requests_to_user ON connection_requests(toUserId);
 
 -- Insert sample data for development
 INSERT INTO users (firstName, lastName, email, password, age, gender, about, photo) VALUES
