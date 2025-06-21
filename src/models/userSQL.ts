@@ -140,9 +140,6 @@ class UserModel {
       query += ' ORDER BY createdAt DESC LIMIT ? OFFSET ?';
       params.push(Number(limit), Number(skip));
 
-      console.log('🔍 SQL Query:', query);
-      console.log('🔍 SQL Params:', params);
-
       const [rows] = await connection.query(query, params);
       const users = rows as IUser[];
 
