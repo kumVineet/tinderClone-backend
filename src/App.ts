@@ -12,6 +12,7 @@ import authRouter from './Routes/authRouter';
 import profileRouter from './Routes/profileRouter';
 import requestsRouter from './Routes/requestsRouter';
 import userRouter from './Routes/userRouter';
+import environmentRouter from './Routes/environmentRouter';
 
 app.use(
   cors({
@@ -22,10 +23,32 @@ app.use(
 app.use(express.json());
 app.use(cookieParser());
 
-app.use("/", authRouter);
-app.use("/profile", profileRouter);
-app.use("/request", requestsRouter);
-app.use("/user", userRouter);
+// Environment-specific API routes
+app.use(`${config.apiPrefix}/auth`, authRouter);
+app.use(`${config.apiPrefix}/profile`, profileRouter);
+app.use(`${config.apiPrefix}/requests`, requestsRouter);
+app.use(`${config.apiPrefix}/users`, userRouter);
+app.use(`${config.apiPrefix}/info`, environmentRouter);
+
+// Root endpoint with environment info
+app.get('/', (req, res) => {
+  res.json({
+    message: `TinderClone API - ${config.nodeEnv.toUpperCase()} Environment`,
+    environment: config.nodeEnv,
+    apiPrefix: config.apiPrefix,
+    port: config.port,
+    endpoints: {
+      info: `${config.apiPrefix}/info`,
+      health: `${config.apiPrefix}/info/health`,
+      status: `${config.apiPrefix}/info/status`,
+      auth: `${config.apiPrefix}/auth`,
+      users: `${config.apiPrefix}/users`,
+      profile: `${config.apiPrefix}/profile`,
+      requests: `${config.apiPrefix}/requests`,
+    },
+    timestamp: new Date().toISOString(),
+  });
+});
 
 // MongoDB connection - commented out
 // connectDB()
@@ -45,7 +68,11 @@ pool.getConnection()
     console.log("SQL Database connected...");
     connection.release();
     app.listen(config.port, () => {
-      console.log(`Server is running on port ${config.port} in ${config.nodeEnv} mode`);
+      console.log(`🚀 Server is running on port ${config.port} in ${config.nodeEnv} mode`);
+      console.log(`📡 API Base URL: ${config.apiBaseUrl}`);
+      console.log(`🔗 API Prefix: ${config.apiPrefix}`);
+      console.log(`🌐 Frontend URL: ${config.frontendUrl}`);
+      console.log(`🗄️  Database: ${config.database.database} on ${config.database.host}`);
     });
   })
   .catch((err) => {

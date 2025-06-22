@@ -9,6 +9,11 @@ export interface EnvironmentConfig {
   port: number;
   nodeEnv: string;
   
+  // API Configuration
+  apiBaseUrl: string;
+  apiVersion: string;
+  apiPrefix: string;
+  
   // CORS Configuration
   frontendUrl: string;
   
@@ -51,6 +56,9 @@ const getEnvironmentConfig = (): EnvironmentConfig => {
   const baseConfig = {
     port: parseInt(process.env.PORT || '2000'),
     nodeEnv,
+    apiBaseUrl: process.env.API_BASE_URL || `http://localhost:${process.env.PORT || '2000'}`,
+    apiVersion: process.env.API_VERSION || 'v1',
+    apiPrefix: process.env.API_PREFIX || '/api',
     frontendUrl: process.env.FRONTEND_URL || 'http://localhost:3000',
     jwtSecret: process.env.JWT_SECRET!,
     jwtExpiresIn: process.env.JWT_EXPIRES_IN || '1h',
@@ -68,13 +76,17 @@ const getEnvironmentConfig = (): EnvironmentConfig => {
     case 'development':
       return {
         ...baseConfig,
+        port: 2000,
+        apiBaseUrl: 'http://localhost:2000',
+        apiPrefix: '/api/dev',
+        frontendUrl: 'http://localhost:3000',
         database: {
-          host: process.env.LOCAL_MYSQL_HOST || 'localhost',
-          user: process.env.LOCAL_MYSQL_USER || 'root',
-          password: process.env.LOCAL_MYSQL_PASSWORD || '',
-          database: process.env.LOCAL_MYSQL_DATABASE || 'tinderClone_local',
-          connectionLimit: parseInt(process.env.LOCAL_MYSQL_CONNECTION_LIMIT || '10'),
-          queueLimit: parseInt(process.env.LOCAL_MYSQL_QUEUE_LIMIT || '0'),
+          host: process.env.DEV_MYSQL_HOST!,
+          user: process.env.DEV_MYSQL_USER!,
+          password: process.env.DEV_MYSQL_PASSWORD!,
+          database: process.env.DEV_MYSQL_DATABASE || 'tinderClone_dev',
+          connectionLimit: parseInt(process.env.DEV_MYSQL_CONNECTION_LIMIT || '10'),
+          queueLimit: parseInt(process.env.DEV_MYSQL_QUEUE_LIMIT || '0'),
         },
         logLevel: 'debug',
         corsEnabled: true,
@@ -84,6 +96,10 @@ const getEnvironmentConfig = (): EnvironmentConfig => {
     case 'staging':
       return {
         ...baseConfig,
+        port: 3001,
+        apiBaseUrl: 'http://localhost:3001',
+        apiPrefix: '/api/staging',
+        frontendUrl: 'http://localhost:3000',
         database: {
           host: process.env.STAGING_MYSQL_HOST!,
           user: process.env.STAGING_MYSQL_USER!,
@@ -100,6 +116,10 @@ const getEnvironmentConfig = (): EnvironmentConfig => {
     case 'production':
       return {
         ...baseConfig,
+        port: 8080,
+        apiBaseUrl: 'http://localhost:8080',
+        apiPrefix: '/api',
+        frontendUrl: 'http://localhost:3000',
         database: {
           host: process.env.PRODUCTION_MYSQL_HOST!,
           user: process.env.PRODUCTION_MYSQL_USER!,
