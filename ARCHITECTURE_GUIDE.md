@@ -1,471 +1,402 @@
-# 🚀 First Day Setup (Quick Start for New Developers)
+# 🏗️ TinderClone Backend Architecture Guide
 
-Welcome! Follow these steps to get the TinderClone backend running locally for any environment (dev, staging, prod).
+A comprehensive guide to the technical architecture of the TinderClone backend system.
 
-## 1. Prerequisites
-- **Node.js**: v18+ (recommended)
-- **npm**: v9+
-- **MySQL Client**: 8.0.x (not 9.x)
-  - Install: `brew install mysql@8.0`
-  - Use: `/opt/homebrew/opt/mysql@8.0/bin/mysql -V`
-- **RDS Access**: Ask a project admin for RDS credentials and ensure your IP is whitelisted in the AWS RDS security group.
+## 🎯 System Architecture Overview
 
-## 2. Clone & Install
-```bash
-git clone <repo-url>
-cd tinderClone-backend
-npm install
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                        TinderClone Backend                      │
+├─────────────────────────────────────────────────────────────────┤
+│  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐            │
+│  │ Development │  │   Staging   │  │ Production  │            │
+│  │   Port:2000 │  │  Port:3001  │  │  Port:8080  │            │
+│  │ /api/dev    │  │/api/staging │  │   /api      │            │
+│  └─────────────┘  └─────────────┘  └─────────────┘            │
+├─────────────────────────────────────────────────────────────────┤
+│                    Amazon RDS MySQL Databases                   │
+│  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐            │
+│  │   RDS Dev   │  │ RDS Staging │  │  RDS Prod   │            │
+│  │tinderClone_ │  │tinderClone_ │  │tinderBackend│            │
+│  │    dev      │  │  staging    │  │             │            │
+│  └─────────────┘  └─────────────┘  └─────────────┘            │
+└─────────────────────────────────────────────────────────────────┘
 ```
 
-## 3. Setup Environment Files
-```bash
-npm run env:setup
-# Edit .env.development, .env.staging, .env.production with your credentials
+## 🏛️ Application Architecture
+
+### **Technology Stack**
+- **Runtime**: Node.js 18+ with TypeScript
+- **Framework**: Express.js
+- **Database**: MySQL 8.0+ (Amazon RDS)
+- **Authentication**: JWT (JSON Web Tokens)
+- **Password Hashing**: bcrypt
+- **Connection Pooling**: mysql2/promise
+- **CORS**: Cross-Origin Resource Sharing enabled
+- **Environment Management**: dotenv with environment-specific configs
+
+### **Project Structure**
+```
+src/
+├── config/                 # Configuration management
+│   ├── environment.ts     # Environment-specific settings
+│   ├── databaseConfig.ts  # Database connection configuration
+│   └── mysql.ts          # MySQL connection pool
+├── middlewares/           # Express middlewares
+│   └── auth.ts           # JWT authentication middleware
+├── models/               # Database models
+│   ├── userSQL.ts        # User data operations
+│   └── connectionRequestSQL.ts # Connection request operations
+├── Routes/               # API route handlers
+│   ├── authRouter.ts     # Authentication endpoints
+│   ├── profileRouter.ts  # Profile management
+│   ├── userRouter.ts     # User operations
+│   ├── requestsRouter.ts # Connection requests
+│   └── environmentRouter.ts # System info endpoints
+├── types/                # TypeScript type definitions
+│   └── index.ts         # Shared interfaces and types
+├── utils/                # Utility functions
+│   └── validations.ts   # Input validation
+└── App.ts               # Main application entry point
 ```
 
-## 4. Setup Databases
-```bash
-npm run db:setup:all
-# Or setup individually: npm run db:setup:dev, npm run db:setup:staging, npm run db:setup:prod
+## 🗄️ Database Architecture
+
+### **Database Schema Design**
+
+#### **Users Table**
+```sql
+CREATE TABLE users (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    firstName VARCHAR(255) NOT NULL,
+    lastName VARCHAR(255),
+    email VARCHAR(255) UNIQUE NOT NULL,
+    password VARCHAR(255) NOT NULL,
+    age INT,
+    gender ENUM('male', 'female', 'others'),
+    about TEXT,
+    photo VARCHAR(500) DEFAULT 'https://www.w3schools.com/howto/img_avatar.png',
+    skills JSON,
+    createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    INDEX idx_email (email),
+    INDEX idx_gender (gender),
+    INDEX idx_created_at (createdAt)
+);
 ```
 
-## 5. Test Database Connections
-```bash
-npm run db:test:all
+#### **Connection Requests Table**
+```sql
+CREATE TABLE connection_requests (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    fromUserId INT NOT NULL,
+    toUserId INT NOT NULL,
+    fromUserName VARCHAR(255),
+    toUserName VARCHAR(255),
+    status ENUM('ignore', 'accepted', 'rejected', 'interested') NOT NULL,
+    createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (fromUserId) REFERENCES users(id) ON DELETE CASCADE,
+    FOREIGN KEY (toUserId) REFERENCES users(id) ON DELETE CASCADE,
+    UNIQUE KEY unique_request (fromUserId, toUserId),
+    INDEX idx_status (status),
+    INDEX idx_from_user (fromUserId),
+    INDEX idx_to_user (toUserId),
+    INDEX idx_created_at (createdAt)
+);
 ```
 
-## 6. Run the Server
-```bash
-# Development	npm run dev
-# Staging		npm run dev:staging
-# Production	npm run dev:prod
+### **Database Connection Architecture**
+
+#### **Connection Pool Configuration**
+```typescript
+const pool = mysql.createPool({
+  host: config.database.host,
+  user: config.database.user,
+  password: config.database.password,
+  database: config.database.database,
+  connectionLimit: config.database.connectionLimit,
+  queueLimit: config.database.queueLimit,
+  waitForConnections: true,
+  charset: 'utf8mb4',
+});
 ```
 
-## 7. Test API Endpoints
-```bash
-curl http://localhost:2000/api/dev/info
-curl http://localhost:3001/api/staging/info
-curl http://localhost:8080/api/info
+#### **Environment-Specific Connection Limits**
+- **Development**: 10 connections
+- **Staging**: 20 connections  
+- **Production**: 50 connections
+
+### **Data Flow Architecture**
+
+```
+┌─────────────┐    ┌─────────────┐    ┌─────────────┐
+│   Client    │───▶│   Express   │───▶│   MySQL     │
+│  (Frontend) │    │  Middleware │    │   Database  │
+└─────────────┘    └─────────────┘    └─────────────┘
+                        │
+                        ▼
+                ┌─────────────┐
+                │   JWT Auth  │
+                │  Validation │
+                └─────────────┘
+                        │
+                        ▼
+                ┌─────────────┐
+                │   Business  │
+                │   Logic     │
+                └─────────────┘
+                        │
+                        ▼
+                ┌─────────────┐
+                │   Database  │
+                │   Models    │
+                └─────────────┘
 ```
 
-## 8. Troubleshooting
-- **MySQL plugin/auth errors?** Use MySQL 8.0 client, not 9.x
-- **DB connection issues?** Check `.env.*` files and RDS security group
-- **Need help?** See the Troubleshooting section at the end of this doc
+## 🔐 Security Architecture
 
----
+### **Authentication Flow**
+1. **Registration**: User signs up → Password hashed with bcrypt → User stored in database
+2. **Login**: User credentials validated → JWT token generated → Token returned to client
+3. **Authorization**: JWT token validated on each request → User context attached to request
 
-# 🏗️ Multi-Environment Architecture Guide
+### **Security Layers**
+```
+┌─────────────────────────────────────────────────────────┐
+│                    Security Layers                       │
+├─────────────────────────────────────────────────────────┤
+│ 1. CORS Protection (Origin validation)                  │
+│ 2. Input Validation (Request sanitization)              │
+│ 3. JWT Authentication (Token-based auth)                │
+│ 4. Password Hashing (bcrypt with salt)                  │
+│ 5. Database Connection Pooling (Connection management)  │
+│ 6. Environment Isolation (Separate configs)             │
+│ 7. Rate Limiting (Production/Staging)                   │
+└─────────────────────────────────────────────────────────┘
+```
 
-A comprehensive guide for the TinderClone backend with environment-specific APIs, databases, and management tools.
+### **Environment-Specific Security**
+- **Development**: Debug logging, no rate limiting
+- **Staging**: Info logging, rate limiting enabled
+- **Production**: Warn logging, full security measures
 
-## 🎯 Architecture Overview
+## 🔄 API Architecture
 
+### **RESTful API Design**
+```
+/api/{environment}/
+├── /auth
+│   ├── POST /signup     # User registration
+│   ├── POST /login      # User authentication
+│   └── POST /logout     # User logout
+├── /profile
+│   ├── GET  /view       # Get user profile
+│   ├── PATCH /edit      # Update profile
+│   └── PATCH /password  # Update password
+├── /users
+│   ├── GET /feed        # Get user feed
+│   ├── GET /request     # Get connection requests
+│   └── GET /connections # Get accepted connections
+├── /requests
+│   ├── POST /send/:status/:toUserId    # Send connection request
+│   └── POST /review/:status/:requestId # Review connection request
+└── /info
+    ├── GET /            # Environment information
+    ├── GET /health      # Health check
+    ├── GET /status      # System status
+    └── GET /db-health   # Database health check
+```
+
+### **Request/Response Flow**
+```
+Client Request
+    │
+    ▼
+┌─────────────┐
+│   CORS      │ ← Origin validation
+└─────────────┘
+    │
+    ▼
+┌─────────────┐
+│ Validation  │ ← Input sanitization
+└─────────────┘
+    │
+    ▼
+┌─────────────┐
+│   Auth      │ ← JWT token validation
+└─────────────┘
+    │
+    ▼
+┌─────────────┐
+│ Business    │ ← Application logic
+│ Logic       │
+└─────────────┘
+    │
+    ▼
+┌─────────────┐
+│ Database    │ ← Data operations
+│ Models      │
+└─────────────┘
+    │
+    ▼
+Client Response
+```
+
+## 🏗️ Multi-Environment Architecture
+
+### **Environment Isolation Strategy**
 ```
 ┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
 │   Development   │    │     Staging     │    │   Production    │
-│   Port: 2000    │    │   Port: 3001    │    │   Port: 8080    │
-│   API: /api/dev │    │ API: /api/staging│   │   API: /api     │
-│   DB: RDS Dev   │    │   DB: RDS Staging│   │   DB: RDS Prod  │
+│                 │    │                 │    │                 │
+│ • Port: 2000    │    │ • Port: 3001    │    │ • Port: 8080    │
+│ • API: /api/dev │    │ • API: /api/    │    │ • API: /api     │
+│ • DB: RDS Dev   │    │   staging       │    │ • DB: RDS Prod  │
+│ • Log: Debug    │    │ • DB: RDS Stag  │    │ • Log: Warn     │
+│ • Rate: None    │    │ • Log: Info     │    │ • Rate: Full    │
 └─────────────────┘    └─────────────────┘    └─────────────────┘
 ```
 
-## 🚀 Environment-Specific API Endpoints
-
-### **Development Environment**
-- **Port**: 2000
-- **API Base**: `http://localhost:2000/api/dev`
-- **Database**: RDS Dev (`tinderClone_dev`)
-- **Features**: Debug logging, no rate limiting
-
-**Example Endpoints:**
-```
-GET  http://localhost:2000/api/dev/info
-POST http://localhost:2000/api/dev/auth/register
-GET  http://localhost:2000/api/dev/users
-```
-
-### **Staging Environment**
-- **Port**: 3001
-- **API Base**: `http://localhost:3001/api/staging`
-- **Database**: RDS Staging (`tinderClone_staging`)
-- **Features**: Info logging, rate limiting enabled
-
-**Example Endpoints:**
-```
-GET  http://localhost:3001/api/staging/info
-POST http://localhost:3001/api/staging/auth/register
-GET  http://localhost:3001/api/staging/users
-```
-
-### **Production Environment**
-- **Port**: 8080
-- **API Base**: `http://localhost:8080/api`
-- **Database**: RDS Prod (`tinderClone_prod`)
-- **Features**: Warn logging, full security
-
-**Example Endpoints:**
-```
-GET  http://localhost:8080/api/info
-POST http://localhost:8080/api/auth/register
-GET  http://localhost:8080/api/users
+### **Environment Configuration Management**
+```typescript
+interface EnvironmentConfig {
+  // Server Configuration
+  port: number;
+  nodeEnv: string;
+  
+  // API Configuration
+  apiBaseUrl: string;
+  apiVersion: string;
+  apiPrefix: string;
+  
+  // Database Configuration
+  database: {
+    host: string;
+    user: string;
+    password: string;
+    database: string;
+    connectionLimit: number;
+    queueLimit: number;
+  };
+  
+  // Security Configuration
+  jwtSecret: string;
+  jwtExpiresIn: string;
+  corsEnabled: boolean;
+  rateLimitEnabled: boolean;
+}
 ```
 
-## 📋 Quick Setup Guide
+## 🔧 Error Handling Architecture
 
-### **Step 1: Setup Environment Files**
-```bash
-# Copy environment example files
-npm run env:setup
-
-# This creates:
-# - .env.development
-# - .env.staging  
-# - .env.production
-```
-
-### **Step 2: Update Environment Files**
-Edit each `.env.*` file with your actual credentials:
-
-**Development (.env.development):**
-```bash
-# Update with your RDS development credentials
-DEV_MYSQL_HOST=your-rds-endpoint.amazonaws.com
-DEV_MYSQL_USER=your-rds-username
-DEV_MYSQL_PASSWORD=your-rds-password
-DEV_MYSQL_DATABASE=tinderClone_dev
-
-# Generate a unique JWT secret
-JWT_SECRET=your-development-jwt-secret
-```
-
-**Staging (.env.staging):**
-```bash
-STAGING_MYSQL_HOST=your-rds-endpoint.amazonaws.com
-STAGING_MYSQL_USER=your-rds-username
-STAGING_MYSQL_PASSWORD=your-rds-password
-JWT_SECRET=your-staging-secret
-```
-
-**Production (.env.production):**
-```bash
-PRODUCTION_MYSQL_HOST=your-rds-endpoint.amazonaws.com
-PRODUCTION_MYSQL_USER=your-rds-username
-PRODUCTION_MYSQL_PASSWORD=your-rds-password
-JWT_SECRET=your-production-secret
-```
-
-### **Step 3: Setup All Databases**
-```bash
-# Setup all environments at once
-npm run db:setup:all
-
-# Or setup individually
-npm run db:setup:dev
-npm run db:setup:staging
-npm run db:setup:prod
-```
-
-### **Step 4: Test All Environments**
-```bash
-# Test all database connections
-npm run db:test:all
-
-# Or test individually
-npm run db:test:dev
-npm run db:test:staging
-npm run db:test:prod
-```
-
-## 🗄️ MySQL Version Requirements
-
-### **RDS Database Versions**
-- **Amazon RDS MySQL**: 8.0.41 (recommended)
-- **Compatible with**: MySQL 5.7, 8.0.x
-- **Authentication**: `mysql_native_password` or `caching_sha2_password`
-
-### **Local MySQL Client Requirements**
-- **Recommended**: MySQL 8.0.x client
-- **Minimum**: MySQL 5.7 client
-- **Not Recommended**: MySQL 9.x (may have authentication plugin issues)
-
-### **Client Installation (macOS)**
-```bash
-# Install MySQL 8.0 client (recommended)
-brew install mysql@8.0
-
-# Use the specific MySQL 8.0 client
-/opt/homebrew/opt/mysql@8.0/bin/mysql -V
-# Should show: mysql Ver 8.0.42 for macos15.2 on arm64 (Homebrew)
-
-# Connect to RDS
-/opt/homebrew/opt/mysql@8.0/bin/mysql -h your-rds-endpoint.amazonaws.com -u admin -p
-```
-
-### **Troubleshooting MySQL Client Issues**
-If you get authentication plugin errors:
-```bash
-# Error: Authentication plugin 'mysql_native_password' cannot be loaded
-# Solution: Use MySQL 8.0 client instead of MySQL 9.x
-
-# Check your MySQL version
-mysql -V
-
-# If it shows MySQL 9.x, install and use MySQL 8.0
-brew install mysql@8.0
-
-## 🏃‍♂️ Running Different Environments
-
-### **Development (RDS Development)**
-```bash
-npm run dev
-```
-- **URL**: `http://localhost:2000`
-- **API**: `http://localhost:2000/api/dev`
-- **Database**: RDS Development
-
-### **Staging (RDS Staging)**
-```bash
-npm run dev:staging
-```
-- **URL**: `http://localhost:3001`
-- **API**: `http://localhost:3001/api/staging`
-- **Database**: RDS Staging
-
-### **Production (RDS Production)**
-```bash
-npm run dev:prod
-```
-- **URL**: `http://localhost:8080`
-- **API**: `http://localhost:8080/api`
-- **Database**: RDS Production
-
-## 🔄 Database Management
-
-### **Setup Databases**
-```bash
-# Setup all environments
-npm run db:setup:all
-
-# Setup specific environment
-npm run db:setup:dev      # Local development
-npm run db:setup:staging  # RDS staging
-npm run db:setup:prod     # RDS production
-```
-
-### **Test Database Connections**
-```bash
-# Test all environments
-npm run db:test:all
-
-# Test specific environment
-npm run db:test:dev
-npm run db:test:staging
-npm run db:test:prod
-```
-
-### **Clone RDS Data to Development**
-```bash
-# Clone staging data to development
-npm run db:clone:staging
-
-# Clone production data to development
-npm run db:clone:prod
-```
-
-## 📊 Available Scripts
-
-| Script | Description |
-|--------|-------------|
-| `npm run env:setup` | Copy environment example files |
-| `npm run db:setup:all` | Setup all database environments |
-| `npm run db:test:all` | Test all database connections |
-| `npm run dev` | Start development server (local MySQL) |
-| `npm run dev:staging` | Start staging server (RDS staging) |
-| `npm run dev:prod` | Start production server (RDS production) |
-| `npm run db:clone:staging` | Clone staging data to local |
-| `npm run db:clone:prod` | Clone production data to local |
-| `npm run env:dev` | Show development environment info |
-| `npm run env:staging` | Show staging environment info |
-| `npm run env:prod` | Show production environment info |
-
-## 🧪 Testing Different Environments
-
-### **Test API Endpoints**
-```bash
-# Development
-curl http://localhost:2000/api/dev/info
-
-# Staging
-curl http://localhost:3001/api/staging/info
-
-# Production
-curl http://localhost:8080/api/info
-```
-
-### **Test User Registration**
-```bash
-# Development
-curl -X POST http://localhost:2000/api/dev/auth/register \
-  -H "Content-Type: application/json" \
-  -d '{"firstName":"Test","email":"test@dev.com","password":"123"}'
-
-# Staging
-curl -X POST http://localhost:3001/api/staging/auth/register \
-  -H "Content-Type: application/json" \
-  -d '{"firstName":"Test","email":"test@staging.com","password":"123"}'
-
-# Production
-curl -X POST http://localhost:8080/api/auth/register \
-  -H "Content-Type: application/json" \
-  -d '{"firstName":"Test","email":"test@prod.com","password":"123"}'
-```
-
-## 🔧 Environment Information Endpoints
-
-Each environment provides detailed information about its configuration:
-
-### **Environment Info**
-```
-GET /api/dev/info      # Development
-GET /api/staging/info  # Staging
-GET /api/info          # Production
-```
-
-**Response:**
-```json
-{
-  "message": "TinderClone API Environment Info",
-  "environment": "development",
-  "api": {
-    "baseUrl": "http://localhost:2000",
-    "version": "v1",
-    "prefix": "/api/dev",
-    "port": 2000,
-    "endpoints": {
-      "auth": "/api/dev/auth",
-      "users": "/api/dev/users",
-      "profile": "/api/dev/profile",
-      "requests": "/api/dev/requests",
-      "info": "/api/dev/info"
+### **Database Connection Resilience**
+```typescript
+// Retry logic with exponential backoff
+const maxRetries = 3;
+for (let attempt = 1; attempt <= maxRetries; attempt++) {
+  try {
+    // Database operation
+    return result;
+  } catch (error) {
+    if (isConnectionError(error) && attempt < maxRetries) {
+      await delay(Math.pow(2, attempt) * 1000);
+      continue;
     }
-  },
-  "database": {
-    "host": "localhost",
-    "database": "tinderClone_local",
-    "connectionLimit": 10
+    throw error;
   }
 }
 ```
 
-### **Health Check**
-```
-GET /api/dev/info/health
-GET /api/staging/info/health
-GET /api/info/health
-```
-
-### **Status**
-```
-GET /api/dev/info/status
-GET /api/staging/info/status
-GET /api/info/status
+### **Error Response Structure**
+```typescript
+interface ErrorResponse {
+  status: 'error';
+  message: string;
+  code?: string;
+  timestamp: string;
+  path: string;
+}
 ```
 
-## 🛡️ Security Features
+## 📊 Monitoring Architecture
 
-### **Environment-Specific Security**
-- **Development**: No rate limiting, debug logging
-- **Staging**: Rate limiting enabled, info logging
-- **Production**: Full rate limiting, warn logging
+### **Health Check Endpoints**
+- **Basic Health**: `/api/{env}/info/health`
+- **Database Health**: `/api/{env}/info/db-health`
+- **System Status**: `/api/{env}/info/status`
+- **Environment Info**: `/api/{env}/info`
 
-### **Database Security**
-- **Development**: Local MySQL (no network access)
-- **Staging**: RDS with staging credentials
-- **Production**: RDS with production credentials
+### **Database Monitoring**
+```typescript
+// Connection pool monitoring
+pool.on('connection', (connection) => {
+  console.log('New database connection established');
+});
 
-### **JWT Secrets**
-- Each environment has its own JWT secret
-- Never share secrets between environments
-- Use strong, unique secrets for production
-
-## 🔄 Development Workflow
-
-### **Daily Development**
-```bash
-# 1. Start development environment
-npm run dev
-
-# 2. Make changes and test with RDS development database
-# 3. Test with development database
-
-# 4. When ready for staging testing
-npm run db:clone:staging  # Get latest staging data to development
-npm run dev:staging       # Test on staging
-
-# 5. When ready for production
-npm run db:clone:prod     # Get latest production data to development
-npm run dev:prod          # Test on production
+pool.on('error', (err) => {
+  console.error('Database pool error:', err);
+});
 ```
 
-### **Database Sync Workflow**
-```bash
-# Clone staging data to development for testing
-npm run db:clone:staging
+## 🚀 Scalability Considerations
 
-# Clone production data to development for testing
-npm run db:clone:prod
+### **Horizontal Scaling**
+- **Stateless Design**: No session storage, JWT-based authentication
+- **Database Connection Pooling**: Efficient connection management
+- **Environment Isolation**: Independent scaling per environment
 
-# Test changes with real data from staging/production
-npm run dev
+### **Performance Optimizations**
+- **Database Indexing**: Optimized queries with proper indexes
+- **Connection Pooling**: Reuse database connections
+- **Input Validation**: Early rejection of invalid requests
+- **CORS Optimization**: Preflight request handling
+
+### **Future Scalability**
+- **Microservices Ready**: Modular architecture for service decomposition
+- **Load Balancer Compatible**: Stateless design supports load balancing
+- **Database Sharding Ready**: Connection pooling supports multiple databases
+- **Caching Layer Ready**: Architecture supports Redis/Memcached integration
+
+## 🔄 Data Flow Patterns
+
+### **User Registration Flow**
+```
+1. Client → POST /api/{env}/auth/signup
+2. Validation → Input sanitization
+3. Password Hash → bcrypt(password, 10)
+4. Database → INSERT INTO users
+5. Response → Success/Error message
 ```
 
-## 🎯 Benefits of This Architecture
-
-- ✅ **Clear Separation**: Each environment has distinct endpoints
-- ✅ **Independent Databases**: No data conflicts between environments
-- ✅ **Easy Testing**: Test with real data from staging/production
-- ✅ **Scalable**: Easy to add new environments
-- ✅ **Secure**: Environment-specific security settings
-- ✅ **Developer Friendly**: Simple commands for all operations
-
-## 🚨 Important Notes
-
-1. **Never commit `.env.*` files** - They contain sensitive credentials
-2. **Use different JWT secrets** for each environment
-3. **Test thoroughly** before deploying to production
-4. **Backup production data** regularly
-5. **Monitor RDS costs** and usage
-
-## 🆘 Troubleshooting
-
-### **Database Connection Issues**
-```bash
-# Test database connections
-npm run db:test:all
-
-# Check environment files
-cat .env.development
-cat .env.staging
-cat .env.production
+### **Profile Update Flow**
+```
+1. Client → PATCH /api/{env}/profile/edit
+2. Auth → JWT validation
+3. Validation → Input sanitization
+4. Database → UPDATE users (with retry logic)
+5. Response → Updated profile data
 ```
 
-### **API Endpoint Issues**
-```bash
-# Check if server is running
-curl http://localhost:2000/api/dev/info
-curl http://localhost:3001/api/staging/info
-curl http://localhost:8080/api/info
+### **Connection Request Flow**
+```
+1. Client → POST /api/{env}/requests/send/:status/:toUserId
+2. Auth → JWT validation
+3. Validation → Check user exists, no duplicate requests
+4. Database → INSERT INTO connection_requests
+5. Response → Request confirmation
 ```
 
-### **Environment Issues**
-```bash
-# Show environment info
-npm run env:dev
-npm run env:staging
-npm run env:prod
-```
+## 🎯 Architecture Benefits
+
+- **🔒 Security**: Multi-layered security with environment isolation
+- **📈 Scalability**: Stateless design with connection pooling
+- **🛡️ Reliability**: Retry logic and error handling
+- **🔧 Maintainability**: Modular structure with clear separation
+- **🧪 Testability**: Environment isolation enables safe testing
+- **📊 Monitoring**: Comprehensive health check endpoints
+- **🔄 Flexibility**: Easy to add new environments or features
 
 ---
 
-**🎉 You now have a robust, scalable multi-environment architecture!** 
+**🏗️ This architecture provides a solid foundation for a scalable, secure, and maintainable backend system.** 

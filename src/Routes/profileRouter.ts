@@ -33,6 +33,12 @@ profileRouter.patch("/edit", userAuth, async (req: AuthenticatedRequest, res: Re
       }
     });
     
+    // Check if there's actually data to update
+    if (Object.keys(updateData).length === 0) {
+      res.status(400).send("ERROR: No valid fields to update");
+      return;
+    }
+    
     const updatedUser = await UserModel.update(user.id, updateData);
     if (!updatedUser) {
       throw new Error("Failed to update user");
@@ -43,7 +49,24 @@ profileRouter.patch("/edit", userAuth, async (req: AuthenticatedRequest, res: Re
       data: updatedUser,
     });
   } catch (error) {
-    res.status(400).send("ERROR :" + (error as Error).message);
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+    
+    // Handle specific connection errors
+    if (errorMessage.includes('ECONNRESET') || errorMessage.includes('Connection lost') || errorMessage.includes('Connection timeout')) {
+      console.error('Database connection error during profile update:', errorMessage);
+      res.status(503).send("ERROR: Database connection issue. Please try again in a moment.");
+      return;
+    }
+    
+    // Handle validation errors
+    if (errorMessage.includes('Invalid edit request')) {
+      res.status(400).send("ERROR: Invalid data provided for profile update");
+      return;
+    }
+    
+    // Handle other errors
+    console.error('Profile update error:', errorMessage);
+    res.status(500).send("ERROR: Failed to update profile. Please try again.");
   }
 });
 

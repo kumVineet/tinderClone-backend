@@ -27,6 +27,10 @@ class DatabaseManager {
           user: process.env.DEV_MYSQL_USER,
           password: process.env.DEV_MYSQL_PASSWORD,
           database: process.env.DEV_MYSQL_DATABASE || 'tinderClone_dev',
+          connectionLimit: parseInt(process.env.DEV_MYSQL_CONNECTION_LIMIT || '10'),
+          queueLimit: parseInt(process.env.DEV_MYSQL_QUEUE_LIMIT || '0'),
+          waitForConnections: true,
+          charset: 'utf8mb4',
         };
       case 'staging':
         return {
@@ -268,6 +272,86 @@ class DatabaseManager {
   }
 }
 
+// Test database connectivity
+async function testDatabaseConnection() {
+  console.log('🔍 Testing database connectivity...');
+  console.log(`Host: ${dbConfig.host}`);
+  console.log(`Database: ${dbConfig.database}`);
+  console.log(`User: ${dbConfig.user}`);
+  
+  const pool = mysql.createPool(dbConfig);
+  
+  try {
+    const connection = await pool.getConnection();
+    console.log('✅ Database connection successful!');
+    
+    // Test a simple query
+    const [rows] = await connection.execute('SELECT 1 as test, NOW() as current_time');
+    console.log('✅ Query test successful:', rows[0]);
+    
+    // Test users table
+    const [userCount] = await connection.execute('SELECT COUNT(*) as count FROM users');
+    console.log(`✅ Users table accessible: ${userCount[0].count} users found`);
+    
+    connection.release();
+    await pool.end();
+    
+    console.log('✅ All database tests passed!');
+    return true;
+  } catch (error) {
+    console.error('❌ Database connection failed:', error.message);
+    
+    if (error.message.includes('ECONNRESET')) {
+      console.error('💡 This appears to be a connection reset error. Possible causes:');
+      console.error('   - Database server is down or restarting');
+      console.error('   - Network connectivity issues');
+      console.error('   - Firewall blocking connections');
+      console.error('   - Database connection limit reached');
+    }
+    
+    if (error.message.includes('Access denied')) {
+      console.error('💡 Authentication failed. Check your database credentials.');
+    }
+    
+    if (error.message.includes('Unknown database')) {
+      console.error('💡 Database does not exist. Run the setup script first.');
+    }
+    
+    await pool.end();
+    return false;
+  }
+}
+
+// Monitor database connections
+async function monitorConnections() {
+  console.log('📊 Monitoring database connections...');
+  
+  const pool = mysql.createPool(dbConfig);
+  let successCount = 0;
+  let failureCount = 0;
+  
+  const testInterval = setInterval(async () => {
+    try {
+      const connection = await pool.getConnection();
+      await connection.execute('SELECT 1');
+      connection.release();
+      successCount++;
+      process.stdout.write(`\r✅ Successful connections: ${successCount}, ❌ Failed: ${failureCount}`);
+    } catch (error) {
+      failureCount++;
+      console.error(`\n❌ Connection failed (${failureCount}):`, error.message);
+    }
+  }, 5000); // Test every 5 seconds
+  
+  // Stop monitoring after 2 minutes
+  setTimeout(() => {
+    clearInterval(testInterval);
+    pool.end();
+    console.log('\n📊 Monitoring completed.');
+    console.log(`Total successful: ${successCount}, Total failed: ${failureCount}`);
+  }, 120000);
+}
+
 // CLI interface
 async function main() {
   const command = process.argv[2];
@@ -304,16 +388,28 @@ async function main() {
       }
       break;
 
+    case 'testdb':
+      await testDatabaseConnection();
+      break;
+
+    case 'monitor':
+      await monitorConnections();
+      break;
+
     default:
       console.log('Database Manager Commands:');
       console.log('  setup [env|all]     - Setup database for environment(s)');
       console.log('  test [env|all]      - Test database connection(s)');
       console.log('  clone [staging|prod] - Clone RDS data to local');
+      console.log('  testdb              - Test database connectivity');
+      console.log('  monitor             - Monitor connections for 2 minutes');
       console.log('');
       console.log('Examples:');
       console.log('  node databaseManager.js setup all');
       console.log('  node databaseManager.js test staging');
       console.log('  node databaseManager.js clone staging');
+      console.log('  node databaseManager.js testdb');
+      console.log('  node databaseManager.js monitor');
   }
 }
 
@@ -321,4 +417,8 @@ if (require.main === module) {
   main().catch(console.error);
 }
 
-module.exports = DatabaseManager; 
+module.exports = {
+  testDatabaseConnection,
+  monitorConnections,
+  dbConfig: manager.getDatabaseConfig('development')
+}; 

@@ -20,6 +20,7 @@ const createPool = () => {
   return mysql.createPool({
     ...dbConfig,
     waitForConnections: true,
+    charset: 'utf8mb4',
   });
 };
 

@@ -96,25 +96,47 @@ class UserModel {
 
   // Find user by ID
   static async findById(id: number): Promise<IUser | null> {
-    const connection = await pool.getConnection();
-    
-    try {
-      const [rows] = await connection.execute(
-        'SELECT * FROM users WHERE id = ?',
-        [id]
-      );
+    const maxRetries = 3;
+    let lastError: Error | null = null;
 
-      const users = rows as IUser[];
-      if (users.length === 0) return null;
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      const connection = await pool.getConnection();
+      
+      try {
+        const [rows] = await connection.execute(
+          'SELECT * FROM users WHERE id = ?',
+          [id]
+        );
 
-      const user = users[0];
-      return {
-        ...user,
-        skills: user.skills ? JSON.parse(user.skills as any) : [],
-      };
-    } finally {
-      connection.release();
+        const users = rows as IUser[];
+        if (users.length === 0) return null;
+
+        const user = users[0];
+        return {
+          ...user,
+          skills: user.skills ? JSON.parse(user.skills as any) : [],
+        };
+      } catch (error) {
+        lastError = error as Error;
+        
+        // If it's an ECONNRESET error and we have retries left, wait and retry
+        if (error instanceof Error && 
+            (error.message.includes('ECONNRESET') || error.message.includes('Connection lost') || error.message.includes('Connection timeout')) &&
+            attempt < maxRetries) {
+          console.log(`Database connection error on findById attempt ${attempt}, retrying...`);
+          await new Promise(resolve => setTimeout(resolve, Math.pow(2, attempt) * 1000)); // Exponential backoff
+          continue;
+        }
+        
+        // If it's not a connection error or we're out of retries, throw the error
+        throw error;
+      } finally {
+        connection.release();
+      }
     }
+    
+    // If we get here, all retries failed
+    throw lastError || new Error('Failed to find user after multiple attempts');
   }
 
   // Find user by email
@@ -176,22 +198,53 @@ class UserModel {
 
   // Update user
   static async update(id: number, updateData: Partial<IUser>): Promise<IUser | null> {
-    const connection = await pool.getConnection();
-    
-    try {
-      const fields = Object.keys(updateData).filter(key => key !== 'id' && key !== 'createdAt' && key !== 'updatedAt');
-      const values = fields.map(field => updateData[field as keyof IUser]);
+    const maxRetries = 3;
+    let lastError: Error | null = null;
 
-      if (fields.length === 0) return await this.findById(id);
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      const connection = await pool.getConnection();
+      
+      try {
+        const fields = Object.keys(updateData).filter(key => key !== 'id' && key !== 'createdAt' && key !== 'updatedAt');
+        const values = fields.map(field => updateData[field as keyof IUser]);
 
-      const query = `UPDATE users SET ${fields.map(field => `${field} = ?`).join(', ')}, updatedAt = CURRENT_TIMESTAMP WHERE id = ?`;
-      values.push(id);
+        if (fields.length === 0) return await this.findById(id);
 
-      await connection.execute(query, values);
-      return await this.findById(id);
-    } finally {
-      connection.release();
+        // Handle skills array serialization
+        const processedValues = values.map((value, index) => {
+          const fieldName = fields[index];
+          if (fieldName === 'skills' && Array.isArray(value)) {
+            return JSON.stringify(value);
+          }
+          return value;
+        });
+
+        const query = `UPDATE users SET ${fields.map(field => `${field} = ?`).join(', ')}, updatedAt = CURRENT_TIMESTAMP WHERE id = ?`;
+        processedValues.push(id);
+
+        await connection.execute(query, processedValues);
+        return await this.findById(id);
+      } catch (error) {
+        lastError = error as Error;
+        
+        // If it's an ECONNRESET error and we have retries left, wait and retry
+        if (error instanceof Error && 
+            (error.message.includes('ECONNRESET') || error.message.includes('Connection lost') || error.message.includes('Connection timeout')) &&
+            attempt < maxRetries) {
+          console.log(`Database connection error on update attempt ${attempt}, retrying...`);
+          await new Promise(resolve => setTimeout(resolve, Math.pow(2, attempt) * 1000)); // Exponential backoff
+          continue;
+        }
+        
+        // If it's not a connection error or we're out of retries, throw the error
+        throw error;
+      } finally {
+        connection.release();
+      }
     }
+    
+    // If we get here, all retries failed
+    throw lastError || new Error('Failed to update user after multiple attempts');
   }
 
   // Delete user

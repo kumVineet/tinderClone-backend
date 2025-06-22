@@ -1,5 +1,6 @@
 import express from 'express';
 import config from '../config/environment';
+import pool from '../config/mysql';
 
 const router = express.Router();
 
@@ -46,6 +47,32 @@ router.get('/health', (req, res) => {
     timestamp: new Date().toISOString(),
     uptime: process.uptime(),
   });
+});
+
+// GET /db-health - Database health check
+router.get('/db-health', async (req, res) => {
+  try {
+    const connection = await pool.getConnection();
+    
+    // Test the connection with a simple query
+    await connection.execute('SELECT 1 as test');
+    
+    connection.release();
+    
+    res.json({
+      status: 'healthy',
+      database: 'connected',
+      timestamp: new Date().toISOString(),
+    });
+  } catch (error) {
+    console.error('Database health check failed:', error);
+    res.status(503).json({
+      status: 'unhealthy',
+      database: 'disconnected',
+      error: error instanceof Error ? error.message : 'Unknown database error',
+      timestamp: new Date().toISOString(),
+    });
+  }
 });
 
 // GET /status - Detailed status
