@@ -55,19 +55,16 @@ cd tinderClone-backend
 # 2. Install dependencies
 npm install
 
-# 3. Setup environment files
-npm run env:setup
-
-# 4. Update environment files with RDS credentials (get from team lead)
+# 3. Update environment files with RDS credentials (get from team lead)
 # Edit .env.development, .env.staging, .env.production
 
-# 5. Setup all databases
+# 4. Setup all databases
 npm run db:setup:all
 
-# 6. Test database connections
+# 5. Test database connections
 npm run db:test:all
 
-# 7. Start development server
+# 6. Start development server
 npm run dev
 ```
 
@@ -137,7 +134,6 @@ brew install mysql@8.0
 - ✅ RDS database credentials for all environments
 - ✅ IP whitelist access to RDS security groups
 - ✅ Repository access (GitHub/GitLab)
-- ✅ Environment variable templates
 
 ---
 
@@ -170,18 +166,7 @@ npm list --depth=0
 
 ## ⚙️ Environment Configuration
 
-### Step 5: Setup Environment Files
-
-```bash
-# Create environment files for all environments
-npm run env:setup
-
-# Verify files were created
-ls -la .env.*
-# Should see: .env.development, .env.staging, .env.production
-```
-
-### Step 6: Configure Environment Variables
+### Step 5: Configure Environment Variables
 
 **Edit `.env.development`:**
 ```bash
@@ -213,7 +198,7 @@ MONGODB_URI=your_mongodb_uri_here
 
 **Repeat for `.env.staging` and `.env.production` with appropriate values.**
 
-### Step 7: Verify Environment Configuration
+### Step 6: Verify Environment Configuration
 
 ```bash
 # Test environment configuration
@@ -249,7 +234,7 @@ npm run env:test
 
 ## 🗄️ Database Setup
 
-### Step 8: Test Database Connectivity
+### Step 7: Test Database Connectivity
 
 ```bash
 # Test connection to development database
@@ -271,7 +256,7 @@ node scripts/databaseManager.js testdb
 - ✅ IP is whitelisted in RDS security group
 - ✅ Network connectivity to RDS endpoint
 
-### Step 9: Setup Database Schema
+### Step 8: Setup Database Schema
 
 ```bash
 # Setup database tables for development
@@ -282,7 +267,7 @@ node scripts/databaseManager.js setup development
 # ✅ Database setup completed successfully!
 ```
 
-### Step 10: Test All Environments (Optional)
+### Step 9: Test All Environments (Optional)
 
 ```bash
 # Test all database connections
@@ -335,7 +320,7 @@ The application automatically creates:
 
 ## 🚀 Application Setup
 
-### Step 11: Build the Application
+### Step 10: Build the Application
 
 ```bash
 # Build for development environment
@@ -346,7 +331,7 @@ ls -la dist/
 # Should see compiled JavaScript files
 ```
 
-### Step 12: Start Development Server
+### Step 11: Start Development Server
 
 ```bash
 # Start development server with hot reload
@@ -383,11 +368,18 @@ npm run build:staging    # Build for staging
 npm run build:prod       # Build for production
 ```
 
+### Environment
+```bash
+npm run env:dev         # Show development environment info
+npm run env:staging     # Show staging environment info
+npm run env:prod        # Show production environment info
+```
+
 ---
 
 ## 🧪 Testing & Verification
 
-### Step 13: Verify API Endpoints
+### Step 12: Verify API Endpoints
 
 **Test the root endpoint:**
 ```bash
@@ -414,7 +406,7 @@ curl http://localhost:2000/
 }
 ```
 
-### Step 14: Test Health Endpoints
+### Step 13: Test Health Endpoints
 
 ```bash
 # Basic health check
@@ -427,7 +419,7 @@ curl http://localhost:2000/api/dev/info/db-health
 curl http://localhost:2000/api/dev/info/status
 ```
 
-### Step 15: Test Database Health Monitoring
+### Step 14: Test Database Health Monitoring
 
 ```bash
 # Monitor database connections for 2 minutes
@@ -444,7 +436,7 @@ node scripts/databaseManager.js monitor
 
 ## 🔄 Development Workflow
 
-### Step 16: Understanding the Project Structure
+### Step 15: Understanding the Project Structure
 
 ```bash
 # Explore the project structure
@@ -461,7 +453,7 @@ tree src/ -I node_modules
 # └── App.ts           # Main application file
 ```
 
-### Step 17: Code Changes & Testing
+### Step 16: Code Changes & Testing
 
 **Making changes:**
 1. Edit files in `src/` directory
@@ -593,7 +585,6 @@ npm run db:clone:prod   # Clone production data to development
 
 ### Environment
 ```bash
-npm run env:setup       # Setup environment files
 npm run env:dev         # Show development environment info
 npm run env:staging     # Show staging environment info
 npm run env:prod        # Show production environment info
@@ -650,19 +641,12 @@ lsof -ti:8080 | xargs kill -9  # Production
 PORT=3001
 ```
 
-#### 7. "Environment file not found" Error
-```bash
-# Create environment files
-npm run env:setup
-# Then update with your RDS credentials
-```
-
-#### 8. "Missing required environment variable" Error
+#### 7. "Missing required environment variable" Error
 - Ensure all required environment variables are set in `.env.*` files
 - Check that RDS credentials are correct
 - Verify database names match your RDS setup
 
-#### 9. "ECONNRESET" errors during profile updates
+#### 8. "ECONNRESET" errors during profile updates
 ```bash
 # This is now handled automatically with retry logic
 # But you can monitor it:
@@ -672,7 +656,7 @@ node scripts/databaseManager.js monitor
 curl http://localhost:2000/api/dev/info/db-health
 ```
 
-#### 10. Database connection fails
+#### 9. Database connection fails
 ```bash
 # Test connectivity
 node scripts/databaseManager.js testdb
@@ -683,7 +667,7 @@ npm run env:test
 # Verify RDS credentials and IP whitelist
 ```
 
-#### 11. TypeScript compilation errors
+#### 10. TypeScript compilation errors
 ```bash
 # Check TypeScript errors
 npx tsc --noEmit
@@ -801,4 +785,4 @@ Before you start developing, verify:
 
 ---
 
-**🎉 Welcome to the team! Happy coding! 🚀** 
+**🎉 Welcome to the team! Happy coding! 🚀**
