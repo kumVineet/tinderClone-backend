@@ -1,6 +1,7 @@
-const validator = require("validator");
+import validator from 'validator';
+import { Request } from 'express';
 
-const validateSignupData = (req) => {
+const validateSignupData = (req: Request): void => {
   const { firstName, lastName, email, password, age, gender } = req.body;
 
   if (!firstName || !lastName) {
@@ -12,7 +13,7 @@ const validateSignupData = (req) => {
   }
 };
 
-const validateEditProfileData = (req) => {
+const validateEditProfileData = (req: Request): boolean => {
   const ALLOWED_UPDATES = [
     "firstName",
     "lastName",
@@ -29,7 +30,7 @@ const validateEditProfileData = (req) => {
   return isEditAllowed;
 };
 
-module.exports = {
+export {
   validateSignupData,
   validateEditProfileData,
-};
+}; 

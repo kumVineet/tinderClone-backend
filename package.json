@@ -2,10 +2,36 @@
   "name": "tinderclone-backend",
   "version": "1.0.0",
   "description": "Backend for TinderClone Devs",
-  "main": "index.js",
+  "main": "dist/App.js",
   "scripts": {
-    "dev": "nodemon src/App.js",
-    "start": "node src/App.js"
+    "build": "tsc",
+    "dev": "NODE_ENV=development nodemon --exec ts-node src/App.ts",
+    "dev:staging": "NODE_ENV=staging nodemon --exec ts-node src/App.ts",
+    "dev:prod": "NODE_ENV=production nodemon --exec ts-node src/App.ts",
+    "start": "NODE_ENV=production node dist/App.js",
+    "start:staging": "NODE_ENV=staging node dist/App.js",
+    "start:dev": "NODE_ENV=development node dist/App.js",
+    "clean": "rm -rf dist",
+    "setup:local-db": "NODE_ENV=development node scripts/setupLocalDB.js",
+    "db:setup": "node scripts/databaseManager.js setup",
+    "db:setup:all": "node scripts/databaseManager.js setup all",
+    "db:setup:dev": "node scripts/databaseManager.js setup development",
+    "db:setup:staging": "node scripts/databaseManager.js setup staging",
+    "db:setup:prod": "node scripts/databaseManager.js setup production",
+    "db:test": "node scripts/databaseManager.js test",
+    "db:test:all": "node scripts/databaseManager.js test all",
+    "db:test:dev": "node scripts/databaseManager.js test development",
+    "db:test:staging": "node scripts/databaseManager.js test staging",
+    "db:test:prod": "node scripts/databaseManager.js test production",
+    "db:clone:staging": "node scripts/databaseManager.js clone staging",
+    "db:clone:prod": "node scripts/databaseManager.js clone production",
+    "env:setup": "cp env-examples/development.env.example .env.development && cp env-examples/staging.env.example .env.staging && cp env-examples/production.env.example .env.production",
+    "env:dev": "echo 'Development Environment:' && echo 'Port: 2000' && echo 'API: http://localhost:2000/api/dev' && echo 'Database: RDS Development'",
+    "env:staging": "echo 'Staging Environment:' && echo 'Port: 3001' && echo 'API: http://localhost:3001/api/staging' && echo 'Database: RDS Staging'",
+    "env:prod": "echo 'Production Environment:' && echo 'Port: 8080' && echo 'API: http://localhost:8080/api' && echo 'Database: RDS Production'",
+    "build:dev": "NODE_ENV=development npm run build",
+    "build:staging": "NODE_ENV=staging npm run build",
+    "build:prod": "NODE_ENV=production npm run build"
   },
   "repository": {
     "type": "git",
@@ -13,8 +39,7 @@
   },
   "keywords": [
     "NodeJs",
-    "and",
-    "Javascript"
+    "TypeScript"
   ],
   "author": "Vineet Kumar",
   "license": "ISC",
@@ -23,9 +48,11 @@
   },
   "homepage": "https://github.com/CS-VineetKumar/tinderClone-backend#readme",
   "dependencies": {
+    "@types/dotenv": "^6.1.1",
     "bcrypt": "^6.0.0",
     "cookie-parser": "^1.4.7",
     "cors": "^2.8.5",
+    "dotenv": "^16.5.0",
     "express": "^5.1.0",
     "jsonwebtoken": "^9.0.2",
     "mongoose": "^8.15.0",
@@ -33,5 +60,17 @@
     "mysql2": "^3.14.1",
     "nodemon": "^3.1.10",
     "validator": "^13.15.0"
+  },
+  "devDependencies": {
+    "@types/bcrypt": "^5.0.2",
+    "@types/cookie-parser": "^1.4.6",
+    "@types/cors": "^2.8.17",
+    "@types/express": "^4.17.21",
+    "@types/jsonwebtoken": "^9.0.6",
+    "@types/multer": "^1.4.12",
+    "@types/node": "^20.11.0",
+    "@types/validator": "^13.11.9",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.3.3"
   }
 }

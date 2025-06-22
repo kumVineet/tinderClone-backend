@@ -1,15 +1,24 @@
-const moongoose = require("mongoose");
-const UserModel = require("../models/user");
+/**
+ * @deprecated This MongoDB connection request model is deprecated.
+ * Use SQL-based connection request management instead.
+ * This file will be removed in a future update.
+ */
 
-const connectionRequestSchema = new moongoose.Schema(
+// MongoDB Connection Request Model - commented out
+/*
+import mongoose, { Schema, Document } from 'mongoose';
+import UserModel from './user';
+import { IConnectionRequest, IUser } from '../types';
+
+const connectionRequestSchema = new Schema<IConnectionRequest>(
   {
     fromUserId: {
-      type: moongoose.Schema.Types.ObjectId,
+      type: Schema.Types.ObjectId,
       ref: "User", // reference to the User collection
       required: true,
     },
     toUserId: {
-      type: moongoose.Schema.Types.ObjectId,
+      type: Schema.Types.ObjectId,
       ref: "User",
       required: true,
     },
@@ -31,9 +40,9 @@ const connectionRequestSchema = new moongoose.Schema(
 );
 
 connectionRequestSchema.pre("save", async function (next) {
-  const connectionRequest = this;
+  const connectionRequest = this as IConnectionRequest & Document;
   // Check if fromUser is same as toUser
-  if (connectionRequest.fromUserId.equals(connectionRequest.toUserId)) {
+  if (connectionRequest.fromUserId.toString() === connectionRequest.toUserId.toString()) {
     throw new Error("You cannot send a connection request to yourself");
   }
   // Add the userName to schema and DB
@@ -55,9 +64,19 @@ connectionRequestSchema.pre("save", async function (next) {
 
 connectionRequestSchema.index({ fromUserId: 1, toUserId: 1 });
 
-const ConnectionRequestModel = new moongoose.model(
+const ConnectionRequestModel = mongoose.model<IConnectionRequest>(
   "ConnectionRequest",
   connectionRequestSchema
 );
 
-module.exports = ConnectionRequestModel;
+export default ConnectionRequestModel;
+*/
+
+// Temporary placeholder - will be replaced with SQL implementation
+const ConnectionRequestModel = {
+  find: () => Promise.resolve([]),
+  findOne: () => Promise.resolve(null),
+  create: () => Promise.resolve({}),
+};
+
+export default ConnectionRequestModel; 

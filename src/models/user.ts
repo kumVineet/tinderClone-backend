@@ -1,10 +1,17 @@
-const mongoose = require("mongoose");
-const validator = require("validator");
+/**
+ * @deprecated This MongoDB user model is deprecated. 
+ * Use src/models/userSQL.ts instead for SQL-based user management.
+ * This file will be removed in a future update.
+ */
 
-const bcrypt = require("bcrypt");
-const jwt = require("jsonwebtoken");
+import mongoose, { Schema, Document } from 'mongoose';
+import validator from 'validator';
+import bcrypt from 'bcrypt';
+import jwt from 'jsonwebtoken';
+import config from '../config/environment';
+import { IUser } from '../types';
 
-const userSchema = new mongoose.Schema(
+const userSchema = new Schema<IUser>(
   {
     firstName: {
       type: String,
@@ -19,7 +26,7 @@ const userSchema = new mongoose.Schema(
       unique: true,
       lowercase: true,
       trim: true,
-      validate(value) {
+      validate(value: string) {
         if (!validator.isEmail(value)) {
           throw new Error("Email is invalid: " + value);
         }
@@ -40,7 +47,7 @@ const userSchema = new mongoose.Schema(
         values: ["male", "female", "others"],
         message: "{VALUE} is not supported",
       },
-      validate(value) {
+      validate(value: string) {
         if (!["male", "female", "others"].includes(value)) {
           throw new Error("Gender data is invalid");
         }
@@ -48,12 +55,12 @@ const userSchema = new mongoose.Schema(
     },
     about: {
       type: String,
-      default: "The default about for the user",
+      default: config.defaultUserAbout,
     },
     photo: {
       type: String,
-      default: "https://www.w3schools.com/howto/img_avatar.png",
-      validate(value) {
+      default: config.defaultUserPhoto,
+      validate(value: string) {
         if (!validator.isURL(value)) {
           throw new Error("ImageUrl is invalid: " + value);
         }
@@ -69,21 +76,21 @@ const userSchema = new mongoose.Schema(
   }
 );
 
-userSchema.methods.getJWT = async function () {
+userSchema.methods.getJWT = async function (): Promise<string> {
   // Never use arrow function here
-  const token = jwt.sign({ _id: this._id }, "TinderClone@123", {
-    expiresIn: "1h",
-  });
+  const token = jwt.sign({ _id: this._id }, config.jwtSecret, {
+    expiresIn: config.jwtExpiresIn,
+  } as any);
   return token;
 };
 
-userSchema.methods.validatePassword = async function (passwordInput) {
+userSchema.methods.validatePassword = async function (passwordInput: string): Promise<boolean> {
   const user = this;
   const isPasswordMatch = await bcrypt.compare(passwordInput, user.password);
 
   return isPasswordMatch;
 };
 
-const UserModel = mongoose.model("User", userSchema);
+const UserModel = mongoose.model<IUser>("User", userSchema);
 
-module.exports = UserModel;
+export default UserModel; 
