@@ -12,7 +12,6 @@
     "start:staging": "NODE_ENV=staging node dist/App.js",
     "start:dev": "NODE_ENV=development node dist/App.js",
     "clean": "rm -rf dist",
-    "setup:local-db": "NODE_ENV=development node scripts/setupLocalDB.js",
     "db:setup": "node scripts/databaseManager.js setup",
     "db:setup:all": "node scripts/databaseManager.js setup all",
     "db:setup:dev": "node scripts/databaseManager.js setup development",

@@ -39,37 +39,59 @@ export interface LoginData {
 class UserModel {
   // Create a new user
   static async create(userData: CreateUserData): Promise<IUser> {
-    const connection = await pool.getConnection();
-    
-    try {
-      // Hash the password
-      const passwordHash = await bcrypt.hash(userData.password, 10);
-      
-      const [result] = await connection.execute(
-        `INSERT INTO users (firstName, lastName, email, password, age, gender, about, photo, skills) 
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-        [
-          userData.firstName,
-          userData.lastName || null,
-          userData.email,
-          passwordHash,
-          userData.age || null,
-          userData.gender || null,
-          userData.about || config.defaultUserAbout,
-          userData.photo || config.defaultUserPhoto,
-          userData.skills ? JSON.stringify(userData.skills) : null,
-        ]
-      );
+    const maxRetries = 3;
+    let lastError: Error | null = null;
 
-      const userId = (result as any).insertId;
-      const user = await this.findById(userId);
-      if (!user) {
-        throw new Error('Failed to create user');
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      const connection = await pool.getConnection();
+      
+      try {
+        // Hash the password
+        const passwordHash = await bcrypt.hash(userData.password, 10);
+        
+        const [result] = await connection.execute(
+          `INSERT INTO users (firstName, lastName, email, password, age, gender, about, photo, skills) 
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          [
+            userData.firstName,
+            userData.lastName || null,
+            userData.email,
+            passwordHash,
+            userData.age || null,
+            userData.gender || null,
+            userData.about || config.defaultUserAbout,
+            userData.photo || config.defaultUserPhoto,
+            userData.skills ? JSON.stringify(userData.skills) : null,
+          ]
+        );
+
+        const userId = (result as any).insertId;
+        const user = await this.findById(userId);
+        if (!user) {
+          throw new Error('Failed to create user');
+        }
+        return user;
+      } catch (error) {
+        lastError = error as Error;
+        
+        // If it's an ECONNRESET error and we have retries left, wait and retry
+        if (error instanceof Error && 
+            (error.message.includes('ECONNRESET') || error.message.includes('Connection lost')) &&
+            attempt < maxRetries) {
+          console.log(`Database connection error on attempt ${attempt}, retrying...`);
+          await new Promise(resolve => setTimeout(resolve, Math.pow(2, attempt) * 1000)); // Exponential backoff
+          continue;
+        }
+        
+        // If it's not a connection error or we're out of retries, throw the error
+        throw error;
+      } finally {
+        connection.release();
       }
-      return user;
-    } finally {
-      connection.release();
     }
+    
+    // If we get here, all retries failed
+    throw lastError || new Error('Failed to create user after multiple attempts');
   }
 
   // Find user by ID
