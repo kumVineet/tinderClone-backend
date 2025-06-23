@@ -20,7 +20,16 @@ const validateEditProfileData = (req: Request): boolean => {
     "gender",
     "age",
     "about",
-    "photo",
+    // Photo keys (for database storage)
+    "photo1_key",
+    "photo2_key",
+    "photo3_key",
+    "photo4_key",
+    // Photo URLs (for frontend display)
+    "photo1",
+    "photo2",
+    "photo3",
+    "photo4",
     "skills",
   ];
 

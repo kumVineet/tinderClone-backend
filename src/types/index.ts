@@ -9,7 +9,16 @@ export interface IUser {
   age?: number;
   gender?: 'male' | 'female' | 'others';
   about?: string;
-  photo?: string;
+  // Photo keys (stored in database)
+  photo1_key?: string;
+  photo2_key?: string;
+  photo3_key?: string;
+  photo4_key?: string;
+  // Photo URLs (generated on-demand for frontend)
+  photo1?: string;
+  photo2?: string;
+  photo3?: string;
+  photo4?: string;
   skills?: string[];
   createdAt: Date;
   updatedAt: Date;
@@ -57,7 +66,16 @@ export interface EditProfileData {
   gender?: 'male' | 'female' | 'others';
   age?: number;
   about?: string;
-  photo?: string;
+  // Photo keys (for database storage)
+  photo1_key?: string;
+  photo2_key?: string;
+  photo3_key?: string;
+  photo4_key?: string;
+  // Photo URLs (for frontend display)
+  photo1?: string;
+  photo2?: string;
+  photo3?: string;
+  photo4?: string;
   skills?: string[];
 }
 

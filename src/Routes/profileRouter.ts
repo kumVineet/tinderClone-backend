@@ -4,13 +4,15 @@ import { userAuth } from '../middlewares/auth';
 import UserModel from '../models/userSQL';
 import { validateEditProfileData } from '../utils/validations';
 import { AuthenticatedRequest, EditProfileData, PasswordUpdateData } from '../types';
+import uploadToS3, { validateBase64Image, generateUserPhotoUrls } from '../utils/uploadToS3';
 
 const profileRouter = express.Router();
 
 // Profile API for logged in user
 profileRouter.get("/view", userAuth, async (req: AuthenticatedRequest, res: Response): Promise<void> => {
   try {
-    res.status(200).send(req.user);
+    const userWithUrls = await generateUserPhotoUrls(req.user);
+    res.status(200).send(userWithUrls);
   } catch (error) {
     res.status(400).send("ERROR :" + (error as Error).message);
   }
@@ -26,12 +28,46 @@ profileRouter.patch("/edit", userAuth, async (req: AuthenticatedRequest, res: Re
 
     // Prepare update data
     const updateData: EditProfileData = {};
-    const allowedFields: (keyof EditProfileData)[] = ['firstName', 'lastName', 'gender', 'age', 'about', 'photo', 'skills'];
+    const allowedFields: (keyof EditProfileData)[] = [
+      'firstName', 'lastName', 'gender', 'age', 'about', 
+      'photo1_key', 'photo2_key', 'photo3_key', 'photo4_key',
+      'photo1', 'photo2', 'photo3', 'photo4',
+      'skills'
+    ];
     allowedFields.forEach((field) => {
       if (req.body[field] !== undefined) {
         updateData[field] = req.body[field];
       }
     });
+
+    // Handle image uploads if provided
+    const imageFields = ['photo1', 'photo2', 'photo3', 'photo4'] as const;
+    const uploadedObjectKeys: string[] = [];
+
+    for (const field of imageFields) {
+      if (req.body[field] && typeof req.body[field] === 'string') {
+        const base64Image = req.body[field] as string;
+        
+        // Validate the image first
+        const validation = validateBase64Image(base64Image);
+        if (!validation.isValid) {
+          res.status(400).send(`ERROR: Invalid image for ${field}: ${validation.error}`);
+          return;
+        }
+
+        // Upload to S3
+        const uploadResult = await uploadToS3(base64Image);
+        if (!uploadResult.success || !uploadResult.objectKey) {
+          res.status(400).send(`ERROR: Failed to upload ${field}: ${uploadResult.error || 'No object key returned'}`);
+          return;
+        }
+
+        // Store the object key in the corresponding _key field
+        const keyField = `${field}_key` as keyof EditProfileData;
+        (updateData as any)[keyField] = uploadResult.objectKey;
+        uploadedObjectKeys.push(uploadResult.objectKey);
+      }
+    }
     
     // Check if there's actually data to update
     if (Object.keys(updateData).length === 0) {
@@ -44,9 +80,13 @@ profileRouter.patch("/edit", userAuth, async (req: AuthenticatedRequest, res: Re
       throw new Error("Failed to update user");
     }
 
+    // Generate signed URLs for the response
+    const userWithUrls = await generateUserPhotoUrls(updatedUser);
+
     res.status(200).send({
       message: `${updatedUser.firstName} updated the profile`,
-      data: updatedUser,
+      data: userWithUrls,
+      uploadedObjectKeys: uploadedObjectKeys.length > 0 ? uploadedObjectKeys : undefined,
     });
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';

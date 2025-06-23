@@ -419,6 +419,5 @@ if (require.main === module) {
 
 module.exports = {
   testDatabaseConnection,
-  monitorConnections,
-  dbConfig: manager.getDatabaseConfig('development')
+  monitorConnections
 }; 

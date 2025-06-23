@@ -3,6 +3,7 @@ import { userAuth } from '../middlewares/auth';
 import ConnectionRequestModel from '../models/connectionRequestSQL';
 import UserModel from '../models/userSQL';
 import { AuthenticatedRequest } from '../types';
+import { generateUserPhotoUrls } from '../utils/uploadToS3';
 
 const userRouter = express.Router();
 
@@ -61,14 +62,17 @@ userRouter.get("/request", userAuth, async (req: AuthenticatedRequest, res: Resp
     const requestsWithUserDetails = await Promise.all(
       connectionRequests.map(async (request) => {
         const fromUser = await UserModel.findById(request.fromUserId);
+        if (!fromUser) return { ...request, fromUser: null };
+        
+        const fromUserWithUrls = await generateUserPhotoUrls(fromUser);
         return {
           ...request,
-          fromUser: fromUser ? {
+          fromUser: {
             id: fromUser.id,
             firstName: fromUser.firstName,
             lastName: fromUser.lastName,
-            photo: fromUser.photo
-          } : null
+            photo: fromUserWithUrls.photo1
+          }
         };
       })
     );
@@ -102,16 +106,19 @@ userRouter.get("/connections", userAuth, async (req: AuthenticatedRequest, res: 
           : connection.fromUserId;
         
         const otherUser = await UserModel.findById(otherUserId);
+        if (!otherUser) return null;
         
-        return otherUser ? {
+        const otherUserWithUrls = await generateUserPhotoUrls(otherUser);
+        
+        return {
           id: otherUser.id,
           firstName: otherUser.firstName,
           lastName: otherUser.lastName,
-          photo: otherUser.photo,
+          photo: otherUserWithUrls.photo1,
           about: otherUser.about,
           age: otherUser.age,
           gender: otherUser.gender
-        } : null;
+        };
       })
     );
 

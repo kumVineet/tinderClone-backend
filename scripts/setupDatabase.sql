@@ -11,7 +11,10 @@ CREATE TABLE IF NOT EXISTS users (
     age INT,
     gender ENUM('male', 'female', 'others'),
     about TEXT,
-    photo VARCHAR(500) DEFAULT 'https://www.w3schools.com/howto/img_avatar.png',
+    photo1_key VARCHAR(500) DEFAULT NULL,
+    photo2_key VARCHAR(500) DEFAULT NULL,
+    photo3_key VARCHAR(500) DEFAULT NULL,
+    photo4_key VARCHAR(500) DEFAULT NULL,
     skills JSON,
     createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
@@ -40,10 +43,10 @@ CREATE TABLE IF NOT EXISTS connection_requests (
 );
 
 -- Insert sample data for development/testing
-INSERT INTO users (firstName, lastName, email, password, age, gender, about, photo) VALUES
-('John', 'Doe', 'john@example.com', '$2b$10$hashedpassword', 25, 'male', 'I love coding and hiking', 'https://example.com/john.jpg'),
-('Jane', 'Smith', 'jane@example.com', '$2b$10$hashedpassword', 23, 'female', 'Passionate about art and music', 'https://example.com/jane.jpg'),
-('Alex', 'Johnson', 'alex@example.com', '$2b$10$hashedpassword', 28, 'others', 'Tech enthusiast and coffee lover', 'https://example.com/alex.jpg')
+INSERT INTO users (firstName, lastName, email, password, age, gender, about) VALUES
+('John', 'Doe', 'john@example.com', '$2b$10$hashedpassword', 25, 'male', 'I love coding and hiking'),
+('Jane', 'Smith', 'jane@example.com', '$2b$10$hashedpassword', 23, 'female', 'Passionate about art and music'),
+('Alex', 'Johnson', 'alex@example.com', '$2b$10$hashedpassword', 28, 'others', 'Tech enthusiast and coffee lover')
 ON DUPLICATE KEY UPDATE updatedAt = CURRENT_TIMESTAMP;
 
 -- Insert sample connection requests

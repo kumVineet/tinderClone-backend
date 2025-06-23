@@ -13,7 +13,16 @@ export interface IUser {
   age?: number;
   gender?: 'male' | 'female' | 'others';
   about?: string;
-  photo?: string;
+  // Photo keys (stored in database)
+  photo1_key?: string;
+  photo2_key?: string;
+  photo3_key?: string;
+  photo4_key?: string;
+  // Photo URLs (generated on-demand for frontend)
+  photo1?: string;
+  photo2?: string;
+  photo3?: string;
+  photo4?: string;
   skills?: string[];
   createdAt: Date;
   updatedAt: Date;
@@ -27,13 +36,41 @@ export interface CreateUserData {
   age?: number;
   gender?: 'male' | 'female' | 'others';
   about?: string;
-  photo?: string;
+  // Photo keys (stored in database)
+  photo1_key?: string;
+  photo2_key?: string;
+  photo3_key?: string;
+  photo4_key?: string;
+  // Photo URLs (generated on-demand for frontend)
+  photo1?: string;
+  photo2?: string;
+  photo3?: string;
+  photo4?: string;
   skills?: string[];
 }
 
 export interface LoginData {
   email: string;
   password: string;
+}
+
+export interface EditProfileData {
+  firstName?: string;
+  lastName?: string;
+  age?: number;
+  gender?: 'male' | 'female' | 'others';
+  about?: string;
+  // Photo keys (for database storage)
+  photo1_key?: string;
+  photo2_key?: string;
+  photo3_key?: string;
+  photo4_key?: string;
+  // Photo URLs (for frontend display)
+  photo1?: string;
+  photo2?: string;
+  photo3?: string;
+  photo4?: string;
+  skills?: string[];
 }
 
 class UserModel {
@@ -50,8 +87,8 @@ class UserModel {
         const passwordHash = await bcrypt.hash(userData.password, 10);
         
         const [result] = await connection.execute(
-          `INSERT INTO users (firstName, lastName, email, password, age, gender, about, photo, skills) 
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          `INSERT INTO users (firstName, lastName, email, password, age, gender, about, photo1_key, photo2_key, photo3_key, photo4_key, skills) 
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
           [
             userData.firstName,
             userData.lastName || null,
@@ -60,7 +97,10 @@ class UserModel {
             userData.age || null,
             userData.gender || null,
             userData.about || config.defaultUserAbout,
-            userData.photo || config.defaultUserPhoto,
+            userData.photo1_key || null,
+            userData.photo2_key || null,
+            userData.photo3_key || null,
+            userData.photo4_key || null,
             userData.skills ? JSON.stringify(userData.skills) : null,
           ]
         );
@@ -205,8 +245,11 @@ class UserModel {
       const connection = await pool.getConnection();
       
       try {
-        const fields = Object.keys(updateData).filter(key => key !== 'id' && key !== 'createdAt' && key !== 'updatedAt');
-        const values = fields.map(field => updateData[field as keyof IUser]);
+        // Filter out photo URL fields (they should not be stored in database)
+        const { photo1, photo2, photo3, photo4, ...dbUpdateData } = updateData;
+        
+        const fields = Object.keys(dbUpdateData).filter(key => key !== 'id' && key !== 'createdAt' && key !== 'updatedAt');
+        const values = fields.map(field => (dbUpdateData as any)[field]);
 
         if (fields.length === 0) return await this.findById(id);
 
