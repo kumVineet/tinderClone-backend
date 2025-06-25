@@ -1,4 +1,4 @@
-import { Request } from 'express';
+import { Request } from "express";
 
 export interface IUser {
   id: number;
@@ -7,9 +7,18 @@ export interface IUser {
   email: string;
   password: string;
   age?: number;
-  gender?: 'male' | 'female' | 'others';
+  gender?: "male" | "female" | "others";
   about?: string;
-  photo?: string;
+  // Photo keys (stored in database)
+  photo1_key?: string;
+  photo2_key?: string;
+  photo3_key?: string;
+  photo4_key?: string;
+  // Photo URLs (generated on-demand for frontend)
+  photo1?: string;
+  photo2?: string;
+  photo3?: string;
+  photo4?: string;
   skills?: string[];
   createdAt: Date;
   updatedAt: Date;
@@ -21,7 +30,7 @@ export interface IConnectionRequest {
   toUserId: number;
   fromUserName?: string;
   toUserName?: string;
-  status: 'ignore' | 'accepted' | 'rejected' | 'interested';
+  status: "ignore" | "accepted" | "rejected" | "interested";
   createdAt: Date;
   updatedAt: Date;
 }
@@ -42,8 +51,15 @@ export interface SignupData {
   lastName?: string;
   email: string;
   password: string;
-  age?: number;
-  gender?: 'male' | 'female' | 'others';
+  month?: number;
+  date?: number;
+  year?: number;
+  gender?: "male" | "female" | "others";
+  interest?: "male" | "female" | "everyone";
+  lookingFor?: string[];
+  hobbies?: string[];
+  about?: string;
+  imageUrls?: string[];
 }
 
 export interface LoginData {
@@ -54,10 +70,19 @@ export interface LoginData {
 export interface EditProfileData {
   firstName?: string;
   lastName?: string;
-  gender?: 'male' | 'female' | 'others';
+  gender?: "male" | "female" | "others";
   age?: number;
   about?: string;
-  photo?: string;
+  // Photo keys (for database storage)
+  photo1_key?: string;
+  photo2_key?: string;
+  photo3_key?: string;
+  photo4_key?: string;
+  // Photo URLs (for frontend display)
+  photo1?: string;
+  photo2?: string;
+  photo3?: string;
+  photo4?: string;
   skills?: string[];
 }
 
@@ -70,4 +95,4 @@ export interface JwtPayload {
   _id: number;
   iat?: number;
   exp?: number;
-} 
+}
