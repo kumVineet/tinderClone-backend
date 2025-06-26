@@ -3,6 +3,7 @@
 const mysql = require('mysql2/promise');
 const fs = require('fs');
 const path = require('path');
+const { spawnSync } = require('child_process');
 
 // Load environment-specific configuration
 const args = process.argv.slice(2);
@@ -248,8 +249,13 @@ class DatabaseManager {
     console.log('🚀 Setting up all database environments...\n');
 
     for (const env of this.environments) {
-      const success = await this.setupDatabase(env);
-      if (success) {
+      // Spawn a new process for each environment
+      const result = spawnSync(
+        process.execPath,
+        [__filename, 'setup', env],
+        { stdio: 'inherit' }
+      );
+      if (result.status === 0) {
         console.log(`✅ ${env} database ready\n`);
       } else {
         console.log(`❌ ${env} database setup failed\n`);
